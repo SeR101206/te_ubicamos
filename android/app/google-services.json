@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "624041347257",
+    "project_id": "teubicamos-ebbd2",
+    "storage_bucket": "teubicamos-ebbd2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:624041347257:android:752e6c8f496232fca8b368",
+        "android_client_info": {
+          "package_name": "com.example.te_ubicamos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDj-ZSHvPMwdickBHDceXRm-JKU319nSIc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
