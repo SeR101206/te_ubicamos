@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 
 import '../services/cv_service.dart';
 
@@ -95,6 +96,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final username = _usernameController.text.trim().toLowerCase();
     final email = _emailController.text.trim().toLowerCase();
 
+    final telefono = int.tryParse(_phoneController.text.trim());
+
+    if (telefono == null) {
+      _showSnackBar('El teléfono debe ser numérico');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -122,10 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       String? documentUrl;
 
       // Carga los documentos antes de guardar el perfil completo.
-      final uploadUrl = await uploadPdf(
-        _pdfPath!,
-        email,
-      );
+      final uploadUrl = await uploadPdf(_pdfPath!, email);
 
       if (_selectedRole == "Empresa") {
         mercantileUrl = uploadUrl;
@@ -140,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'nombre': _nameController.text.trim(),
         'username': username,
         'email': email,
-        'telefono': _phoneController.text.trim(),
+        'telefono': telefono,
         'role': _selectedRole,
         'cv_url': cvUrl,
         'mercantile_url': mercantileUrl,
@@ -318,6 +323,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   TextField(
                     controller: _phoneController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(labelText: 'Teléfono'),
                   ),
                   TextField(

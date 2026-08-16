@@ -10,6 +10,7 @@ import 'package:te_ubicamos/screens/feed_screen.dart';
 import 'package:te_ubicamos/screens/map_screen.dart';
 import 'package:te_ubicamos/screens/dm.dart';
 import 'package:te_ubicamos/screens/pagos_screen.dart';
+import 'package:flutter/services.dart';
 
 class CalificacionesPage extends StatefulWidget {
   final String usuario;
@@ -56,6 +57,14 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
     super.dispose();
   }
 
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   // Carga el perfil desde el documento asociado al UID autenticado.
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -76,10 +85,16 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
 
       if (doc.exists && mounted) {
         final data = doc.data()!;
+
+        // Firestore guarda telefono como entero.
+        final telefono = data['telefono'] as int?;
+
         setState(() {
           userRole = data['role'] as String?;
           cvUrl = data['cv_url'] as String?;
-          userPhone = data['telefono'] as String?;
+          // Se convierte a texto únicamente para mostrarlo
+          // dentro del TextEditingController.
+          userPhone = telefono?.toString();
         });
       }
     }
@@ -153,6 +168,10 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                       ),
                       TextFormField(
                         controller: tempTelefono,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Teléfono',
                         ),
@@ -283,6 +302,12 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
 
                     final prefs = await SharedPreferences.getInstance();
                     final uid = prefs.getString("usuario_uid");
+                    final telefono = int.tryParse(tempTelefono.text.trim());
+
+                    if (telefono == null) {
+                      _showSnackBar('El teléfono debe ser numérico');
+                      return;
+                    }
 
                     if (uid != null) {
                       await FirebaseFirestore.instance
@@ -290,7 +315,7 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                           .doc(uid)
                           .update({
                             'nombre': tempNombre.text,
-                            'telefono': tempTelefono.text,
+                            'telefono': telefono,
                             'bio': tempBio.text,
                           });
                     }
