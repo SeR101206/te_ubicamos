@@ -26,11 +26,18 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-
+  // Controla la aceptación de los documentos legales.
   bool aceptarTerminos = false;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 onPressed: aceptarTerminos
                     ? () {
-                        print("Continuar login");
+                        // Esta pantalla legal todavía no ejecuta el login.
                       }
                     : null,
                 child: const Text("Continuar"),
@@ -166,6 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// Muestra los términos que el usuario debe aceptar.
 class TermsScreen extends StatelessWidget {
   const TermsScreen({super.key});
 
@@ -196,6 +204,7 @@ Los datos serán tratados de acuerdo con la política de privacidad de la aplica
   }
 }
 
+// Muestra la política de privacidad de la aplicación.
 class PrivacyScreen extends StatelessWidget {
   const PrivacyScreen({super.key});
 

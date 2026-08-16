@@ -17,12 +17,11 @@ class FeedScreen extends StatefulWidget {
 
 class _FeedScreenState extends State<FeedScreen>
     with TickerProviderStateMixin {
-
+  // Contenido temporal del feed y mensajes compartidos entre pantallas.
   final ImagePicker _picker = ImagePicker();
   List<Map<String, dynamic>> mensajes = [];
   List<Map<String, dynamic>> trabajos = [];
-  
-  
+
   String nombreUsuario = "";
   String? userRole;
 
@@ -32,38 +31,45 @@ class _FeedScreenState extends State<FeedScreen>
     cargarUsuario();
     cargarDatos();
   }
+
+  // Carga la identidad local y el rol desde el documento del usuario.
   Future<void> cargarUsuario() async {
+    final prefs = await SharedPreferences.getInstance();
+    final usuario = prefs.getString("usuario_actual");
+    final uid = prefs.getString("usuario_uid");
 
-  final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
 
-  String? usuario = prefs.getString("usuario_actual");
-  String? email = prefs.getString("usuario_email");
+    setState(() {
+      nombreUsuario = usuario ?? "Usuario";
+    });
 
-  setState(() {
-    nombreUsuario = usuario ?? "Usuario";
-  });
+    if (uid == null) return;
 
-  if (email != null) {
-    final doc = await FirebaseFirestore.instance.collection('usuarios').doc(email).get();
-    if (doc.exists) {
+    final doc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(uid)
+        .get();
+
+    if (doc.exists && mounted) {
       setState(() {
-        userRole = doc.data()!['role'];
+        userRole = doc.data()?['role'] as String?;
       });
     }
   }
 
-}
-
+  // Persiste los trabajos y sus interacciones localmente.
   Future<void> guardarDatos() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString("trabajos", jsonEncode(trabajos));
+    await prefs.setString("trabajos", jsonEncode(trabajos));
   }
 
+  // Recupera los trabajos guardados cuando se abre el feed.
   Future<void> cargarDatos() async {
     final prefs = await SharedPreferences.getInstance();
-    String? data = prefs.getString("trabajos");
+    final data = prefs.getString("trabajos");
 
-    if (data != null) {
+    if (data != null && mounted) {
       setState(() {
         trabajos = List<Map<String, dynamic>>.from(jsonDecode(data));
       });
@@ -101,6 +107,8 @@ class _FeedScreenState extends State<FeedScreen>
                 final bytes = await imagen.readAsBytes();
                 final base64Str = base64Encode(bytes);
 
+                if (!mounted) return;
+
                 setState(() {
                   trabajos.insert(0, {
                     "usuario": nombreUsuario,
@@ -112,8 +120,9 @@ class _FeedScreenState extends State<FeedScreen>
                   });
                 });
 
-                guardarDatos();
+                await guardarDatos();
 
+                if (!context.mounted) return;
                 Navigator.pop(context);
               },
               child: const Text("Publicar"),

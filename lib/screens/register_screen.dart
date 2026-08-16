@@ -14,7 +14,9 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  // Controladores de los datos principales del registro.
   late TextEditingController _nameController;
+  late TextEditingController _usernameController;
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
   late TextEditingController _phoneController;
@@ -24,13 +26,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _pdfFileName;
   bool _isLoading = false;
 
-  // Rol por defecto
+  // Rol seleccionado para definir el documento requerido.
   String _selectedRole = "Empleado";
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
+    _usernameController = TextEditingController();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
     _phoneController = TextEditingController();
@@ -39,6 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
@@ -63,6 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _performRegistration() async {
     if (_nameController.text.trim().isEmpty ||
+        _usernameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
         _passwordController.text.trim().isEmpty ||
         _phoneController.text.trim().isEmpty) {
@@ -72,7 +77,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!_isPasswordSecure(_passwordController.text.trim())) {
       _showSnackBar(
-          "La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número");
+        "La contraseña debe tener mínimo 8 caracteres, una mayúscula y un número",
+      );
       return;
     }
 
@@ -86,14 +92,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    final username = _usernameController.text.trim().toLowerCase();
+    final email = _emailController.text.trim().toLowerCase();
+
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      // Comprueba que el username no esté ocupado.
+      final existingUsername = await FirebaseFirestore.instance
+          .collection('login_users')
+          .doc(username)
+          .get();
+
+      if (existingUsername.exists) {
+        _showSnackBar("Ese nombre de usuario ya está ocupado");
+        return;
+      }
+
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email,
+            password: _passwordController.text.trim(),
+          );
 
       String uid = userCredential.user!.uid;
 
@@ -101,9 +121,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       String? mercantileUrl;
       String? documentUrl;
 
-      // Subir PDF
-      final uploadUrl =
-          await uploadPdf(_pdfPath!, _emailController.text.trim());
+      // Carga los documentos antes de guardar el perfil completo.
+      final uploadUrl = await uploadPdf(
+        _pdfPath!,
+        email,
+      );
 
       if (_selectedRole == "Empresa") {
         mercantileUrl = uploadUrl;
@@ -111,14 +133,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         cvUrl = uploadUrl;
       }
 
-      // Subir Imagen documento
-      documentUrl =
-          await uploadImage(_documentImage!.path, _emailController.text.trim());
+      documentUrl = await uploadImage(_documentImage!.path, email);
 
       final userData = {
         'uid': uid,
         'nombre': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
+        'username': username,
+        'email': email,
         'telefono': _phoneController.text.trim(),
         'role': _selectedRole,
         'cv_url': cvUrl,
@@ -131,6 +152,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           .collection('usuarios')
           .doc(uid)
           .set(userData);
+
+      // Guarda la relación username-correo usada por el login.
+      await FirebaseFirestore.instance
+          .collection('login_users')
+          .doc(username)
+          .set({'uid': uid, 'email': email});
 
       if (!mounted) return;
 
@@ -146,7 +173,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showConfirmDialog() {
@@ -154,7 +183,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirmar"),
-        content: const Text("Al continuar aceptas nuestros términos y condiciones. y confirmas que eres mayor de edad."),
+        content: const Text(
+          "Al continuar aceptas nuestros términos y condiciones. y confirmas que eres mayor de edad.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -201,7 +232,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ? "Matrícula Mercantil"
                                 : "Hoja de Vida",
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           const SizedBox(height: 10),
 
@@ -209,8 +242,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () async {
                               _pdfPath = await pickPdf();
                               if (_pdfPath != null) {
-                                setState(() =>
-                                    _pdfFileName = _pdfPath!.split('/').last);
+                                setState(
+                                  () =>
+                                      _pdfFileName = _pdfPath!.split('/').last,
+                                );
                               }
                             },
                             icon: const Icon(Icons.picture_as_pdf),
@@ -222,9 +257,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ElevatedButton.icon(
                             onPressed: _pickDocumentImage,
                             icon: const Icon(Icons.camera_alt),
-                            label: Text(_documentImage != null
-                                ? "Imagen cargada"
-                                : "Foto Documento"),
+                            label: Text(
+                              _documentImage != null
+                                  ? "Imagen cargada"
+                                  : "Foto Documento",
+                            ),
                           ),
                         ],
                       ),
@@ -242,9 +279,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     items: const [
                       DropdownMenuItem(
-                          value: "Empleado", child: Text("Empleado")),
+                        value: "Empleado",
+                        child: Text("Empleado"),
+                      ),
                       DropdownMenuItem(
-                          value: "Empresa", child: Text("Empresa")),
+                        value: "Empresa",
+                        child: Text("Empresa"),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) return;
@@ -265,20 +306,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Campos de texto
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(labelText: "Nombre"),
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                  ),
+                  TextField(
+                    controller: _usernameController,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de usuario',
+                      hintText: 'user123',
+                    ),
                   ),
                   TextField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(labelText: "Teléfono"),
+                    decoration: const InputDecoration(labelText: 'Teléfono'),
                   ),
                   TextField(
                     controller: _emailController,
-                    decoration: const InputDecoration(labelText: "Email"),
+                    decoration: const InputDecoration(labelText: 'Email'),
                   ),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
-                    decoration: const InputDecoration(labelText: "Contraseña"),
+                    decoration: const InputDecoration(labelText: 'Contraseña'),
                   ),
 
                   const SizedBox(height: 20),

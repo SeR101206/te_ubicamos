@@ -32,11 +32,13 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
+  // Estado temporal de la pantalla de selección de pago.
   List<Map<String, dynamic>> mensajes = [];
 
     String nombreUsuario = "";
   List trabajos = [];
 
+  // Construye una opción visual para seleccionar el método de pago.
   Widget metodoPago(String nombre, IconData icono){
 
     bool seleccionado = nombreUsuario == nombre;
@@ -218,7 +220,8 @@ class ConfirmacionPago extends StatelessWidget {
 
   const ConfirmacionPago({super.key, required this.metodo});
 
-  Future registrarPago() async{
+  // Registra el pago seleccionado en Firestore.
+  Future<void> registrarPago() async{
 
     await FirebaseFirestore.instance.collection("pagos").add({
 

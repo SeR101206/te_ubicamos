@@ -26,6 +26,7 @@ class CalificacionesPage extends StatefulWidget {
 }
 
 class _CalificacionesPageState extends State<CalificacionesPage> {
+  // Datos temporales de la pantalla y del perfil activo.
   List<Map<String, dynamic>> mensajes = [];
 
   String nombreUsuario = "";
@@ -48,10 +49,20 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
     _loadUserData();
   }
 
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _bioController.dispose();
+    super.dispose();
+  }
+
+  // Carga el perfil desde el documento asociado al UID autenticado.
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final uid = prefs.getString("usuario_uid");
     final currentUser = prefs.getString("usuario_actual");
+
+    if (!mounted) return;
 
     setState(() {
       isOwnProfile = widget.usuario == currentUser;
@@ -63,12 +74,12 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
           .doc(uid)
           .get();
 
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         final data = doc.data()!;
         setState(() {
-          userRole = data['role'];
-          cvUrl = data['cv_url'];
-          userPhone = data['telefono'];
+          userRole = data['role'] as String?;
+          cvUrl = data['cv_url'] as String?;
+          userPhone = data['telefono'] as String?;
         });
       }
     }
@@ -107,11 +118,13 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
       } on FirebaseAuthException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(
-              e.code == 'wrong-password' || e.code == 'invalid-credential'
-                  ? "Contraseña actual incorrecta."
-                  : "No se pudo verificar tu identidad: ${e.message}"
-            )),
+            SnackBar(
+              content: Text(
+                e.code == 'wrong-password' || e.code == 'invalid-credential'
+                    ? "Contraseña actual incorrecta."
+                    : "No se pudo verificar tu identidad: ${e.message}",
+              ),
+            ),
           );
         }
         return false;
@@ -119,6 +132,7 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
     }
 
     bool obscurePassword = true;
+    bool obscurePasswordActual = true;
 
     showDialog(
       context: context,
@@ -139,7 +153,9 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                       ),
                       TextFormField(
                         controller: tempTelefono,
-                        decoration: const InputDecoration(labelText: 'Teléfono'),
+                        decoration: const InputDecoration(
+                          labelText: 'Teléfono',
+                        ),
                       ),
                       TextFormField(
                         controller: tempEmail,
@@ -147,9 +163,19 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                       ),
                       TextFormField(
                         controller: tempPasswordActual,
-                        obscureText: true,
-                        decoration: const InputDecoration(
+                        obscureText: obscurePasswordActual,
+                        decoration: InputDecoration(
                           labelText: 'Contraseña actual',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscurePasswordActual
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            onPressed: () => setDialogState(() {
+                              obscurePasswordActual = !obscurePasswordActual;
+                            }),
+                          ),
                         ),
                       ),
                       TextFormField(
@@ -163,17 +189,17 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                                   ? Icons.visibility_off
                                   : Icons.visibility,
                             ),
-                            onPressed: () {
-                              setDialogState(() {
-                                obscurePassword = !obscurePassword;
-                              });
-                            },
+                            onPressed: () => setDialogState(() {
+                              obscurePassword = !obscurePassword;
+                            }),
                           ),
                         ),
                       ),
                       TextFormField(
                         controller: tempBio,
-                        decoration: const InputDecoration(labelText: 'Biografía'),
+                        decoration: const InputDecoration(
+                          labelText: 'Biografía',
+                        ),
                         maxLines: 3,
                       ),
                       if (userRole == "Empleado") ...[
@@ -202,12 +228,14 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                   onPressed: () async {
                     if (!formKey.currentState!.validate()) return;
 
-                    final authChange = tempEmail.text.isNotEmpty ||
+                    final authChange =
+                        tempEmail.text.isNotEmpty ||
                         tempPassword.text.isNotEmpty;
 
                     if (authChange) {
-                      final reauthenticated =
-                          await reautenticar(tempPasswordActual.text);
+                      final reauthenticated = await reautenticar(
+                        tempPasswordActual.text,
+                      );
                       if (!reauthenticated) return;
 
                       try {
@@ -226,7 +254,9 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                         if (context.mounted && emailPending) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text("Revisa el correo de verificación."),
+                              content: Text(
+                                "Revisa el correo de verificación.",
+                              ),
                               duration: Duration(seconds: 5),
                             ),
                           );
@@ -235,7 +265,9 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text("Error al actualizar: ${e.message}"),
+                              content: Text(
+                                "Error al actualizar: ${e.message}",
+                              ),
                             ),
                           );
                         }
@@ -246,6 +278,7 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                     setState(() {
                       _nombreController.text = tempNombre.text;
                       _bioController.text = tempBio.text;
+                      userPhone = tempTelefono.text;
                     });
 
                     final prefs = await SharedPreferences.getInstance();
@@ -256,10 +289,10 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                           .collection('usuarios')
                           .doc(uid)
                           .update({
-                        'nombre': tempNombre.text,
-                        'telefono': tempTelefono.text,
-                        'bio': tempBio.text,
-                      });
+                            'nombre': tempNombre.text,
+                            'telefono': tempTelefono.text,
+                            'bio': tempBio.text,
+                          });
                     }
 
                     if (!context.mounted) return;
@@ -302,7 +335,8 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                       builder: (context) => AlertDialog(
                         title: const Text("Cerrar sesión"),
                         content: const Text(
-                            "¿Estás seguro de que quieres cerrar sesión?"),
+                          "¿Estás seguro de que quieres cerrar sesión?",
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
@@ -310,22 +344,27 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                           ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red),
+                              backgroundColor: Colors.red,
+                            ),
                             onPressed: () async {
                               final prefs =
                                   await SharedPreferences.getInstance();
+                              await FirebaseAuth.instance.signOut();
                               await prefs.remove("usuario_actual");
                               await prefs.remove("usuario_email");
                               await prefs.remove("usuario_uid");
                               await prefs.remove("usuario_role");
 
                               if (context.mounted) {
-                                Navigator.of(context)
-                                    .pushReplacementNamed('/login');
+                                Navigator.of(
+                                  context,
+                                ).pushReplacementNamed('/login');
                               }
                             },
-                            child: const Text("Cerrar sesión",
-                                style: TextStyle(color: Colors.white)),
+                            child: const Text(
+                              "Cerrar sesión",
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ],
                       ),
@@ -351,7 +390,8 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => MapScreen(usuarioActual: widget.usuario)),
+                builder: (_) => MapScreen(usuarioActual: widget.usuario),
+              ),
             );
           }
 
@@ -359,10 +399,8 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => DMPage(
-                  nombre: widget.usuario,
-                  mensajes: mensajes,
-                ),
+                builder: (_) =>
+                    DMPage(nombre: widget.usuario, mensajes: mensajes),
               ),
             );
           }
@@ -371,8 +409,8 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) =>
-                      CheckoutScreen(usuarioActual: widget.usuario)),
+                builder: (_) => CheckoutScreen(usuarioActual: widget.usuario),
+              ),
             );
           }
         },
@@ -395,8 +433,9 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
               CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.grey,
-                backgroundImage:
-                    _imagenPerfil != null ? FileImage(_imagenPerfil!) : null,
+                backgroundImage: _imagenPerfil != null
+                    ? FileImage(_imagenPerfil!)
+                    : null,
                 child: _imagenPerfil == null
                     ? const Icon(Icons.person, size: 40, color: Colors.white)
                     : null,
@@ -413,7 +452,9 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  _bioController.text.isEmpty ? "Biografía" : _bioController.text,
+                  _bioController.text.isEmpty
+                      ? "Biografía"
+                      : _bioController.text,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -440,13 +481,8 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
               // Tabs
               TabBar(
                 tabs: isEmpresa
-                    ? const [
-                        Tab(text: "Publicaciones"),
-                        Tab(text: "Historial"),
-                      ]
-                    : const [
-                        Tab(text: "Historial"),
-                      ],
+                    ? const [Tab(text: "Publicaciones"), Tab(text: "Historial")]
+                    : const [Tab(text: "Historial")],
               ),
 
               Expanded(
@@ -455,15 +491,17 @@ class _CalificacionesPageState extends State<CalificacionesPage> {
                       ? [
                           // PUBLICACIONES (solo empresa)
                           trabajosUsuario.isEmpty
-                              ? const Center(child: Text("No hay publicaciones"))
+                              ? const Center(
+                                  child: Text("No hay publicaciones"),
+                                )
                               : GridView.builder(
                                   itemCount: trabajosUsuario.length,
                                   gridDelegate:
                                       const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
-                                    crossAxisSpacing: 4,
-                                    mainAxisSpacing: 4,
-                                  ),
+                                        crossAxisCount: 3,
+                                        crossAxisSpacing: 4,
+                                        mainAxisSpacing: 4,
+                                      ),
                                   itemBuilder: (context, index) {
                                     final trabajo = trabajosUsuario[index];
                                     return Image.memory(

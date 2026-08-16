@@ -19,14 +19,13 @@ class DMPage extends StatefulWidget {
 }
 
 class _DMPageState extends State<DMPage> {
+  // Controladores de entrada y desplazamiento del chat.
   final TextEditingController _mensajeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
 
   late List<Map<String, dynamic>> mensajes;
-    List<Map<String, dynamic>> trabajos = [];
-  
-  
+  List<Map<String, dynamic>> trabajos = [];
+
   String nombreUsuario = "";
 
   @override
@@ -36,6 +35,14 @@ class _DMPageState extends State<DMPage> {
     nombreUsuario = widget.nombre;
   }
 
+  @override
+  void dispose() {
+    _mensajeController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Devuelve la hora que se muestra junto a cada mensaje.
   String obtenerHoraActual() {
     final now = TimeOfDay.now();
     return "${now.hour}:${now.minute.toString().padLeft(2, '0')}";
@@ -55,6 +62,8 @@ class _DMPageState extends State<DMPage> {
       _mensajeController.clear();
 
       Future.delayed(const Duration(milliseconds: 100), () {
+        if (!mounted || !_scrollController.hasClients) return;
+
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),

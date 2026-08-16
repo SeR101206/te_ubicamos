@@ -3,8 +3,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:te_ubicamos/screens/calificaciones_page.dart';
 import 'package:te_ubicamos/screens/dm.dart';
 import 'package:te_ubicamos/screens/feed_screen.dart';
+import 'package:te_ubicamos/screens/pagos_screen.dart';
 
-// Modelo de datos para empresas
+// Modelo de datos para representar negocios en el mapa.
 class Empresa {
   final String nombre;
   final double calificacion;
@@ -30,6 +31,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  // Datos temporales utilizados por el mapa y la navegación.
   List<Map<String, dynamic>> mensajes = [];
   late GoogleMapController mapController;
 
@@ -132,7 +134,7 @@ Widget build(BuildContext context) {
       selectedItemColor: Colors.black,
       unselectedItemColor: Colors.grey,
 
-     onTap: (index) async {
+     onTap: (index) {
   if (index == 4) {
     final navigator = Navigator.of(context);
     final usuarioActual = widget.usuarioActual;
@@ -154,6 +156,12 @@ Widget build(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const FeedScreen()),
+    );
+  } else if (index == 3) {
+    // Ir a pagos_screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
     );
   }
 },
