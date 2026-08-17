@@ -32,6 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // false: login por correo.
   // true: login por username.
   bool _loginWithUsername = false;
+  // true: ocultar contraseña
+  // false: mostrar contraseña
+  bool obscurePassword = true;
 
   @override
   void initState() {
@@ -63,9 +66,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Obtiene el correo asociado al username para poder
@@ -91,9 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   /// Obtiene los datos del usuario usando su UID de Firebase Auth.
-  Future<Map<String, dynamic>?> _loadUserData({
-    required String uid,
-  }) async {
+  Future<Map<String, dynamic>?> _loadUserData({required String uid}) async {
     final userByUid = await FirebaseFirestore.instance
         .collection('usuarios')
         .doc(uid)
@@ -124,9 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ? userData['email'] as String
         : email;
 
-    final role = userData['role'] is String
-        ? userData['role'] as String
-        : '';
+    final role = userData['role'] is String ? userData['role'] as String : '';
 
     // Las operaciones locales se ejecutan juntas.
     await Future.wait([
@@ -183,10 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Firebase Auth valida el correo y la contraseña.
       final userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-        email: emailForAuth,
-        password: password,
-      );
+          .signInWithEmailAndPassword(email: emailForAuth, password: password);
 
       final firebaseUser = userCredential.user;
 
@@ -199,24 +195,16 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = firebaseUser.email ?? emailForAuth;
 
       // Se cargan los datos adicionales guardados en Firestore.
-      final userData = await _loadUserData(
-        uid: uid,
-      );
+      final userData = await _loadUserData(uid: uid);
 
       if (userData == null) {
-        _showMessage(
-          'No existe información del usuario en Firestore',
-        );
+        _showMessage('No existe información del usuario en Firestore');
         return;
       }
 
       // Se guarda la sesión para que otras pantallas
       // puedan recuperar los datos básicos del usuario.
-      await _saveSession(
-        uid: uid,
-        email: email,
-        userData: userData,
-      );
+      await _saveSession(uid: uid, email: email, userData: userData);
 
       if (!mounted) return;
 
@@ -265,15 +253,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Center(
               // Limita el ancho en tablets y pantallas grandes.
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 480,
-                ),
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: _isLoading
                     ? const Padding(
                         padding: EdgeInsets.only(top: 200),
-                        child: Center(
-                          child: CircularProgressIndicator(),
-                        ),
+                        child: Center(child: CircularProgressIndicator()),
                       )
                     : Column(
                         mainAxisSize: MainAxisSize.min,
@@ -339,9 +323,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? 'Ejemplo: sergio123'
                                   : 'Ejemplo: correo@dominio.com',
                               prefixIcon: Icon(
-                                _loginWithUsername
-                                    ? Icons.person
-                                    : Icons.email,
+                                _loginWithUsername ? Icons.person : Icons.email,
                               ),
                               border: const OutlineInputBorder(),
                             ),
@@ -352,10 +334,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Campo independiente para la contraseña.
                           TextField(
                             controller: _passwordController,
-                            obscureText: true,
-                            decoration: const InputDecoration(
+                            obscureText: obscurePassword,
+                            decoration: InputDecoration(
                               labelText: 'Contraseña',
                               prefixIcon: Icon(Icons.lock),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed: () => setState(() {
+                                  obscurePassword = !obscurePassword;
+                                }),
+                              ),
                               border: OutlineInputBorder(),
                             ),
                           ),
@@ -391,8 +383,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           // que GestureDetector para una acción textual.
                           TextButton(
                             onPressed: () {
-                              Navigator.of(context)
-                                  .pushNamed('/register');
+                              Navigator.of(context).pushNamed('/register');
                             },
                             child: const Text('Crea una cuenta'),
                           ),

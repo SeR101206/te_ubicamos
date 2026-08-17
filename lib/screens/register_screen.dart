@@ -208,6 +208,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  bool obscurePassword = true;
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -333,8 +335,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   TextField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Contraseña'),
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () => setState(() {
+                          obscurePassword = !obscurePassword;
+                        }),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 20),
