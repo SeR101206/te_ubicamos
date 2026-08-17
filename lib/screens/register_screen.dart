@@ -23,9 +23,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late TextEditingController _phoneController;
 
   File? _documentImage;
+
   String? _pdfPath;
   String? _pdfFileName;
+
   bool _isLoading = false;
+  bool obscurePassword = true;
 
   // Rol seleccionado para definir el documento requerido.
   String _selectedRole = "Empleado";
@@ -207,8 +210,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
-  bool obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
